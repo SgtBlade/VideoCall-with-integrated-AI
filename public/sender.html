@@ -26,7 +26,9 @@
     let socket;
     let myStream;
     let peer;
+    let users = {}
 
+    
     const servers = {
       iceServers: [{
         urls: 'stun:stun.l.google.com:19302'
@@ -34,6 +36,7 @@
     };
 
     const init = async () => {
+      if(!localStorage.getItem('nickname'))window.location.href="../index.html"
       initSocket();
       $peerSelect.addEventListener('input', callSelectedPeer);
       const constraints = { audio: true, video: { width: 1280, height: 720 } };
@@ -45,18 +48,24 @@
     const initSocket = () => {
       socket = io.connect('/');
       socket.on('connect', () => {
-        console.log(socket.id);
+        console.log(`this id: ${socket.id}`);
+        socket.emit('userName', {id: socket.id, username: localStorage.getItem('nickname')})
       });
+
+      socket.on('userName', data => {
+        //users[data.id] = data.username;
+        //updatePeerList();
+      })
+
       socket.on('clients', updatePeerList);
 
       socket.on('signal', async (myId, signal, peerId) => {
-        console.log(`Received signal from ${peerId}`);
-        console.log(signal);
         peer.signal(signal);
       });
     };
 
     const updatePeerList = (clients) => {
+      console.log(clients)
       $peerSelect.innerHTML = '<option value="none">--- Select Peer To Call ---</option>';
       for (const clientId in clients) {
         const isMyOwnId = (clientId === socket.id);
@@ -64,7 +73,7 @@
           const client = clients[clientId];
           const $option = document.createElement('option');
           $option.value = clientId;
-          $option.textContent = clientId;
+          $option.textContent = client.username;
           $peerSelect.appendChild($option);
         }
       }

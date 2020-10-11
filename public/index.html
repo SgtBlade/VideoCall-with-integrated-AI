@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<style>
+    html {
+    box-sizing: border-box;
+    font-size: 62.5%;
+    overflow: scroll;
+    overflow-x: hidden;
+    height: 100vh;
+    }
+
+    .body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-flow: column;
+        width: 100vw;
+        height: 100vh;
+        max-height: 100vh;
+    }
+
+    .button {
+        width: 20rem;
+        padding: 2rem 3rem;
+        font-size: 2.2rem;
+        background-color: rgb(134, 255, 130);
+        color: rgb(104, 104, 104);
+        text-align: center;
+        text-decoration: none;
+        margin: 3rem;
+        border: 1px solid rgb(104, 104, 104);
+    }
+
+    .cursor {
+	position: relative;
+    }
+    .cursor	i {
+        position: absolute;
+        width: 1px;
+        height: 80%;
+        background-color: gray;
+        left: 50%;
+        top: 0%;
+        animation-name: blink;
+        animation-duration: 800ms;
+        animation-iteration-count: infinite;
+        opacity: 1;
+    }
+
+    .cursor input:focus + i {
+        display: none;
+    }
+
+    @keyframes blink {
+        from { opacity: 1; }
+        to { opacity: 0; }
+    }
+
+    .nameInput {
+        text-align: center;
+        height: 4rem;
+        width: auto;
+        max-width: 26rem;
+        border: none;
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    .nameInput:focus {
+  outline: none;
+    }   
+    .inputWrap {
+        width: 26rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+</style>
+<body class="body">
+
+    <div class="inputWrap cursor">
+    <input oninput="addToStorage()" placeholder="Name" type="text" class="nameInput" />
+        <i class="blink"></i>
+    </div>
+
+    <a class="button caller" href="./sender.html">
+        Call someone
+    </a>
+
+    <a class="button receiver" href="./receiver.html">
+        Go to incoming calls
+    </a>
+
+    <script>
+        const $nameInput = document.querySelector('.nameInput');
+        const $inputWrap = document.querySelector('.inputWrap');
+        let $blink = document.querySelector('.blink');
+        const addToStorage = () => {
+            if($nameInput.value !== ""){
+
+                if($blink){
+                    $inputWrap.classList.add('cursor');
+                    $inputWrap.removeChild($blink);
+                    $blink = false;
+                }
+
+                localStorage.setItem('nickname', $nameInput.value);
+
+                console.log(`Nickname set to: ${localStorage.getItem('nickname')}`)
+                
+            }if(!$inputWrap.classList.contains('cursor')) {
+                $inputWrap.classList.add('cursor')
+                const i = document.createElement('i');
+                i.classList.add('blink');
+                $inputWrap.appendChild(i);
+                $blink = document.querySelector('.blink');
+            }
+          
+        }
+    </script>
+</body>
+</html>

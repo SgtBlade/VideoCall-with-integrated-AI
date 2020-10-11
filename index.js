@@ -32,6 +32,11 @@ io.on('connection', socket => {
     io.emit('clients', clients);
   });
 
+  socket.on('userName', data => {
+    clients[data.id] = {id: data.id, username: data.username};
+    io.emit('clients', clients);
+  })
+
   socket.on('signal', (peerId, signal) => {
     console.log(`Received signal from ${socket.id} to ${peerId}`);
     io.to(peerId).emit('signal', peerId, signal, socket.id);
