@@ -1,4 +1,10 @@
 {
+  "name": "Week04-Communication",
+  "description": "WebRTC Thingy",
+  "version": "1.0.0",
+  "engines": {
+    "node": "12.x"
+  },
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
