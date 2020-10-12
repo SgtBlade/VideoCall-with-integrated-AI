@@ -308,10 +308,17 @@
       $chatInput.addEventListener("keyup", (e)=>{e.keyCode === 13 ? addMessage() : ''});
       $chatInput.disabled = true;
       $chatButton.disabled = true;
-      const constraints = { audio: true, video: { width: 1280, height: 720 } };
-      myStream = await navigator.mediaDevices.getUserMedia(constraints);
-      $myCamera.srcObject = myStream;
-      $myCamera.onloadedmetadata = () => $myCamera.play();
+      
+      try {
+        const constraints = { audio: true, video: { width: 1280, height: 720 } };
+        myStream = await navigator.mediaDevices.getUserMedia(constraints);
+        $myCamera.srcObject = myStream;
+        $myCamera.onloadedmetadata = () => $myCamera.play();
+      } catch {
+        alert('Permission to the webcam is required for this application to work');
+        window.location.href="../index.html"
+      }
+      
     };
 
     const cancelCall= () => {
@@ -368,12 +375,14 @@
     }
 
     const updateChat = messageObj => {
+      if(messageObj.from.id !== currentUser.id || messageObj.from.id !== inCall.id){
         const $message = document.createElement('p');
         $message.classList.add('chat--item')
         $message.textContent = messageObj.message
         if(messageObj.from.id === currentUser.id)$message.classList.add('outgoing');
         else if(messageObj.from.id === inCall.id)$message.classList.add('incoming');
         $chatMessages.appendChild($message);
+      }
     }
 
     const updatePeerList = (clients) => {
