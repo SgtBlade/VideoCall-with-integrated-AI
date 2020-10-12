@@ -142,10 +142,76 @@
       border: none;
       border-radius: 0 1rem 1rem 0;
     }   
+
+
+    @media screen and (max-width: 800px)and (max-height: 500px) {
+
+    .body {
+      max-height: 100vh;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #peerSelect {
+      max-height: 15rem;
+      overflow: scroll;
+      overflow-x: hidden;
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto;
+      padding-bottom: 1rem;
+      background-color: rgb(65, 65, 65);
+    }
+
+    .callOption {
+      height: 2.5rem;
+      padding: .5rem 2rem;
+      overflow: hidden;
+      vertical-align: middle;
+      width: 20rem;
+    }
+
+    .list {
+      max-height: none;
+      display: flex;
+      flex-flow: column;
+    }
+
+
+
+    }
+
+  @media screen and (max-width: 600px) {
+
+  .body {
+    display: flex;
+    justify-content: center;
+    flex-flow: column;
+    max-height: 100vh;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .list {
+    max-height: none;
+    display: flex;
+    flex-flow: column;
+  }
+
+  .messages {
+    margin-top: 0;
+    padding-top: 1rem;
+  }
+
+  .chat {
+    display: flex;
+    flex-flow: column;
+  }
+  }
   </style>
 </head>
 <body class="body">
-  <h1 class="title">Receiver</h1>
+  <h1 class="title">Waiting for incoming call</h1>
   <video id="otherCamera" playsinline autoplay muted></video>
   
   <div class="list">
@@ -171,6 +237,7 @@
     let users = []
     let socket;
     let peer;
+    let myStream;
     let inCall = false;
     let currentUser;
     let messages = [];
@@ -188,11 +255,13 @@
       $chatInput.addEventListener("keyup", (e)=>{e.keyCode === 13 ? addMessage() : ''});
       $chatInput.disabled = true;
       $chatButton.disabled = true;
-      $otherCamera.addEventListener('click', () => {
-        $otherCamera.play();
-      });
-    };
+      
+      const constraints = { audio: true, video: { width: 1280, height: 720 } };
+      myStream = await navigator.mediaDevices.getUserMedia(constraints);
+      $otherCamera.srcObject = myStream;
+      $otherCamera.onloadedmetadata = () => $otherCamera.play();
 
+    };
 
     const addMessage = () => {
       if(inCall){
@@ -205,7 +274,6 @@
     }
 
     const updateChat = messageObj => {
-      console.log(messageObj)
         const $message = document.createElement('p');
         $message.classList.add('chat--item')
         $message.textContent = messageObj.message
@@ -216,6 +284,7 @@
 
     const initSocket = () => {
       socket = io.connect(`/`);
+
       socket.on(`connect`, () => {
         console.log(`this id: ${socket.id}`);
         currentUser = {id: socket.id, username: localStorage.getItem('nickname')};
@@ -238,22 +307,47 @@
       })
 
       socket.on('signal', async (myId, signal, peerId) => {
-        if (signal.type === 'offer') {
+        if (signal.type === 'offer' && !peer) {
           answerPeerOffer(myId, signal, peerId);
           if(!inCall)socket.emit('userRequest', peerId, currentUser);
         }
         peer.signal(signal);
       });
+    
+      socket.on('cient-disconnect', socketId => {
+        if(inCall){
+          if(socketId === inCall.id){if(peer) peer.destroy(); peer = null;}
+          $otherCamera.srcObject = myStream;
+        }
+      })
     };
 
     const answerPeerOffer = async (myId, offer, peerId) => {
-      peer = new SimplePeer();
+      peer = new SimplePeer({initiator: false , stream: myStream});
       peer.on('signal', data => {
         socket.emit('signal', peerId, data);
       });
+
       peer.on('stream', stream => {
         $otherCamera.srcObject = stream;
       });
+
+      peer.on('close', () => {
+        console.log('close');
+        peer.destroy(); 
+        peer = null;
+        $otherCamera.srcObject = myStream;
+        document.querySelector('.title').textContent = `Waiting for incoming call`;
+        inCall = false;
+        $chatMessages.innerHTML = '';
+        $chatInput.disabled = true;
+        $chatButton.disabled = true;
+      })
+
+      peer.on('error', error => {
+        console.log('error')
+        console.log(`an error occured: ${error}`)
+      })
     };
 
     init();

@@ -54,6 +54,7 @@
     }
 
     .list {
+      max-height: 100vh;
       grid-row: 1 / span 3;
       grid-column: 2;
       background-color: rgb(65, 65, 65);
@@ -179,6 +180,79 @@
       background-color: rgb(45, 136, 255);
     }
 
+    .chat--item:first-of-type {
+      margin-top: 2.5rem;
+    }
+
+    @media screen and (max-width: 800px)and (max-height: 500px) {
+
+      .body {
+        max-height: 100vh;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      #peerSelect {
+        max-height: 15rem;
+        overflow: scroll;
+        overflow-x: hidden;
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        padding-bottom: 1rem;
+        background-color: rgb(65, 65, 65);
+      }
+
+      .callOption {
+        height: 2.5rem;
+        padding: .5rem 2rem;
+        overflow: hidden;
+        vertical-align: middle;
+        width: 20rem;
+      }
+
+      .list {
+        max-height: none;
+        display: flex;
+        flex-flow: column;
+      }
+
+
+
+      }
+
+    @media screen and (max-width: 600px) {
+
+      .body {
+        display: flex;
+        justify-content: center;
+        flex-flow: column;
+        max-height: 100vh;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      #peerSelect {
+        max-height: 15rem;
+        overflow: scroll;
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        padding-bottom: 1rem;
+        background-color: rgb(65, 65, 65);
+      }
+
+      .callOption {
+        height: 3.5rem;
+      }
+
+      .list {
+        max-height: none;
+        display: flex;
+        flex-flow: column;
+      }
+      }
+
   </style>
 </head>
 <body class="body">
@@ -205,6 +279,7 @@
   <script type="module">
 
     const $myCamera = document.getElementById('myCamera');
+    const $otherCamera = document.getElementById('otherCamera');
     const $peerSelect = document.getElementById('peerSelect');
     const $chatButton = document.querySelector('.sending--submit');
     const $chatInput = document.querySelector('.sending--input');
@@ -239,6 +314,18 @@
       $myCamera.onloadedmetadata = () => $myCamera.play();
     };
 
+    const cancelCall= () => {
+          if(peer !== null)peer.destroy(); 
+          peer = null;
+          $myCamera.srcObject = myStream;
+          document.querySelector('.title').textContent = `Select a name to call`;
+          inCall = false;
+          $chatMessages.innerHTML = '';
+          $chatInput.disabled = true;
+          $chatButton.disabled = true;
+          updatePeerList(localClients);
+    }
+
     const initSocket = () => {
       socket = io.connect('/');
       socket.on('connect', () => {
@@ -254,10 +341,20 @@
       })
 
       socket.on('signal', async (myId, signal, peerId) => {
+        if(signal.type === 'offer' && !peer) {
+          await handlePeerOffer(myId, signal, peerId)
+        }
         peer.signal(signal);
       });
     
       socket.on('chatMessage', updateChat);
+    
+      socket.on('cient-disconnect', socketId => {
+        if(inCall){
+          if(socketId === inCall.id){if(peer) peer.destroy(); peer = null;}
+          $myCamera.srcObject = myStream;
+        }
+      })
     };
 
     const addMessage = () => {
@@ -281,14 +378,18 @@
 
     const updatePeerList = (clients) => {
       localClients = clients;
-      $peerSelect.innerHTML = '';//'<li value="none">--- Select Peer To Call ---</li>';
+      $peerSelect.innerHTML = '';
+      const $InitObject = document.createElement('li');
+      $InitObject.classList.add('callOption');
+      $InitObject.textContent = '--- Cancel call ---';
+      $InitObject.addEventListener('click', cancelCall)
+      $peerSelect.appendChild($InitObject);
       for (const clientId in clients) {
         const isMyOwnId = (clientId === socket.id);
         if (clients.hasOwnProperty(clientId) && !isMyOwnId) {
           const client = clients[clientId];
-          const $option = document.createElement('option');
+          const $option = document.createElement('li');
           $option.classList.add('callOption');
-          $option.value = clientId;
           $option.textContent = client.username;
           if(inCall)if(inCall.id === client.id)$option.classList.add('currentCall');
           $option.addEventListener('click', () => {callSelectedPeer(client)})
@@ -298,10 +399,10 @@
     };
 
     const callSelectedPeer = async (client) => {
-      console.log(client);
       if (client.id === 'none') {
         return;
       }
+      if(inCall)cancelCall();
       console.log('call selected peer', client.id);
 
       document.querySelector('.title').textContent = `Currently calling with: ${client.username}`;
@@ -309,9 +410,9 @@
     };
 
     const callPeer = async (peerObj) => {
-
+      
       peer = new SimplePeer({ initiator: true, stream: myStream });
-      console.log(peer);
+     
       peer.on('signal', data => {
         inCall = peerObj;
         $chatInput.disabled = false;
@@ -321,18 +422,29 @@
       });
 
       peer.on('close', () => {
-        inCall = false;
-        $chatMessages.innerHTML = '';
-        $chatInput.disabled = true;
-        $chatButton.disabled = true;
-        document.querySelector('.title').textContent = `Select a name to call`;
+        cancelCall();
       })
 
       peer.on('error', error => {
         console.log(`an error occured: ${error}`)
       })
 
+      peer.on('stream', stream => {
+        $myCamera.srcObject = stream;
+      })
     };
+
+    const handlePeerOffer = async (myPeerId, offer, peerId) => {
+      peer = new SimplePeer({initiator: false, stream: myStream});
+
+      peer.on('signal', signal => {
+        socket.emit(signal, peerId, signal);
+      })
+
+      peer.on('stream', stream => {
+        $myCamera.srcObject = stream;
+      })
+    }
 
     init();
 
