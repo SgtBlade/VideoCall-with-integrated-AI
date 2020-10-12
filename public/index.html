@@ -25,7 +25,7 @@
     }
 
     .button {
-        width: 20rem;
+        width: 30rem;
         padding: 2rem 3rem;
         font-size: 2.2rem;
         background-color: rgb(134, 255, 130);
@@ -34,6 +34,8 @@
         text-decoration: none;
         margin: 3rem;
         border: 1px solid rgb(104, 104, 104);
+        cursor: pointer;
+        border-radius: 1rem;
     }
 
     .cursor {
@@ -65,13 +67,13 @@
         text-align: center;
         height: 4rem;
         width: auto;
-        max-width: 26rem;
+        max-width: 30rem;
         border: none;
         font-size: 3rem;
         margin-bottom: 1rem;
     }
-    .nameInput:focus {
-  outline: none;
+    .nameInput:focus, .button:active, .button:focus {
+        outline: none;
     }   
     .inputWrap {
         width: 26rem;
@@ -79,47 +81,100 @@
         justify-content: center;
         align-items: center;
     }
+
+    .Alert {
+        color: rgba(253, 88, 23, 0.774);
+        padding: 1rem 3rem;
+        font-size: 2.2rem;
+        border: 2px solid rgba(253, 88, 23, 0.774);
+        border-radius: 1.2rem;
+    }
+
+    .hidden {
+        display: none;
+        visibility: hidden;
+
+    }
 </style>
 <body class="body">
 
+    <p class="Alert hidden">
+        Please input a username of minimum 3 characters.
+    </p>
+
     <div class="inputWrap cursor">
-    <input oninput="addToStorage()" placeholder="Name" type="text" class="nameInput" />
+    <input placeholder="Name" type="text" class="nameInput" />
         <i class="blink"></i>
     </div>
 
-    <a class="button caller" href="./sender.html">
+    <button class="button caller" href="./sender.html">
         Call someone
-    </a>
+    </button>
 
-    <a class="button receiver" href="./receiver.html">
+    <button class="button receiver" href="./receiver.html">
         Go to incoming calls
-    </a>
+    </button>
 
     <script>
+        {
         const $nameInput = document.querySelector('.nameInput');
         const $inputWrap = document.querySelector('.inputWrap');
         let $blink = document.querySelector('.blink');
+        const $alert = document.querySelector('.Alert')
+
         const addToStorage = () => {
+            localStorage.setItem('nickname', $nameInput.value)
             if($nameInput.value !== ""){
 
                 if($blink){
-                    $inputWrap.classList.add('cursor');
+                    $inputWrap.classList.remove('cursor');
                     $inputWrap.removeChild($blink);
                     $blink = false;
                 }
 
-                localStorage.setItem('nickname', $nameInput.value);
-
                 console.log(`Nickname set to: ${localStorage.getItem('nickname')}`)
                 
-            }if(!$inputWrap.classList.contains('cursor')) {
+            }else if(!$blink){
                 $inputWrap.classList.add('cursor')
                 const i = document.createElement('i');
                 i.classList.add('blink');
                 $inputWrap.appendChild(i);
                 $blink = document.querySelector('.blink');
+                }
+            
+            if(!$alert.classList.contains('hidden'))checkUser(localStorage.getItem('nickname'));
+        }
+
+        const checkUser = (usr) => {
+            if(usr !== null && usr.replace(" ", "").length >=  3){
+                if(!$alert.classList.contains('hidden'))$alert.classList.add('hidden');
+                return true;
+            }else if($alert.classList.contains('hidden')){$alert.classList.remove('hidden'); return false;}
+        }
+    
+        const validate = (e, type) => {
+            e.preventDefault();
+            const username = localStorage.getItem('nickname');
+            if(checkUser(username)){
+                window.location.href=`../${type}.html`
             }
-          
+        }
+
+        const init = () => {
+            document.querySelector('.caller').addEventListener('click', e => validate(e, 'sender'));
+            document.querySelector('.receiver').addEventListener('click', e => validate(e, 'receiver'));
+            const $input = document.querySelector('.nameInput'); 
+            $input.addEventListener('input', addToStorage);
+
+            if(localStorage.getItem('nickname')){
+                $input.value = localStorage.getItem('nickname');
+                $inputWrap.classList.add('cursor');
+                $inputWrap.removeChild($blink);
+                $blink = false;
+            }
+        }
+
+        init();
         }
     </script>
 </body>

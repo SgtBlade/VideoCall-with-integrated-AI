@@ -37,8 +37,21 @@ io.on('connection', socket => {
     io.emit('clients', clients);
   })
 
+  /*
+const messageObj = {from: currentUser, user: inCall, message: $chatInput.value};
+socket.emit('chatMessage', messageObj)
+  */
+
+  socket.on('chatMessage', messageObj => {
+    io.to(messageObj.user.id).emit('chatMessage', messageObj);
+  });
+
+  socket.on('userRequest', (requestID, requestor) => {
+    io.to(requestID).emit('userRequest', requestor)
+  })
+
   socket.on('signal', (peerId, signal) => {
-    console.log(`Received signal from ${socket.id} to ${peerId}`);
+    //console.log(`Received signal from ${socket.id} to ${peerId}`);
     io.to(peerId).emit('signal', peerId, signal, socket.id);
   });
 

@@ -5,16 +5,200 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WebRTC</title>
   <style>
+
+    html {
+        box-sizing: border-box;
+        font-size: 62.5%;
+        overflow: scroll;
+        overflow-x: hidden;
+        height: 100vh;
+
+        background-color: black;
+        color: rgb(230, 230, 230);
+        }
+
+    .body {
+            display: grid;
+            grid-template-columns: 5fr 1fr;
+            grid-template-rows: 1fr 10fr;
+            width: 100vw;
+            height: 100vh;
+            max-height: 100vh;
+            margin: 0 !important;
+        }
+
     video {
+      max-height: 100%;
       max-width: 100%;
       height: auto;
+      margin: 0rem 1rem;
     }
+
+    .title {
+      margin: 0;
+      padding: 0;
+      grid-column: 1;
+      margin: 1rem 1rem;
+      font-size: 3rem;
+    }
+
+    .friendCamera {
+      max-height: 60rem;
+      align-self: center;
+    }
+
+    .cameraWrap {
+      max-height: 8rem;
+      grid-row: 2;
+      grid-column: 1;
+    }
+
+    .list {
+      grid-row: 1 / span 3;
+      grid-column: 2;
+      background-color: rgb(65, 65, 65);
+      z-index: 1;
+
+      display: grid;
+      grid-template-rows: 1fr 10fr 3fr;
+    }
+
+    #peerSelect {
+      padding: 0;
+      margin: 0;
+      padding-inline-start: 0;
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      flex-flow: column;
+      overflow: scroll;
+    }
+
+    .callOption {
+      padding: 0;
+      margin: 0;
+      font-size: 2.2rem;
+      text-align: left;
+      width: 100%;
+      padding: 1rem;
+      border-bottom: 1px solid rgb(41, 41, 41);
+      cursor: pointer;
+      max-width: 100%;
+      overflow: scroll;
+    }
+
+    .callOption::before {
+      content: '';
+      margin-left: 1rem;
+    }
+
+    .callOption:hover {
+      background-color: black;
+    }
+
+    .list--title {
+      font-size: 2.2rem;
+      font-weight: bold;
+      text-align: center;
+      border-bottom: 1px solid black;
+      padding-bottom: 1rem;
+      margin-bottom: 0;
+    }
+
+    .chat {
+      max-height: 20rem;
+      display: grid;
+      grid-template-rows: 5fr 1fr;
+      min-height: 21.3rem;
+    }
+
+    .messages{
+      align-self: flex-end;
+      justify-self: flex-end;
+      width: 100%;
+      height: 100%;
+      background-color: rgb(39, 39, 39);
+      overflow:scroll;
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+      
+      display: flex;
+      flex-flow: column;
+      align-items: flex-start;
+    }
+
+    .chat--item {
+      margin: .5rem 1rem;
+      font-size: 1.6rem;
+      padding: .5rem 1rem;
+      clear:both;
+      float:left;
+      border-radius: 1.5rem;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+
+    .incoming {
+      background-color: rgb(34, 166, 255);
+      color: white;
+    }
+
+    .outgoing {
+      background-color: rgb(240, 240, 240);
+      color: black;
+      align-self: flex-end;
+    }
+
+    .sending {
+      background-color: rgb(39, 39, 39);
+      padding: .5rem;
+      display: grid;
+      grid-template-columns: 5fr 1fr;
+    }
+
+    .sending--input {
+      font-size: 1.6rem;
+    }
+
+    .sending--input:focus,  .sending--submit:focus {
+      outline: none;
+    }
+
+    .sending--input {
+      border-radius: 1rem 0 0 1rem;
+      padding-left: .5rem;
+    }
+
+    .sending--submit {
+      border: none;
+      border-radius: 0 1rem 1rem 0;
+    }
+
+    .currentCall {
+      background-color: rgb(45, 136, 255);
+    }
+
   </style>
 </head>
-<body>
-  <h1>Sender</h1>
-  <video id="myCamera" playsinline autoplay muted></video>
-  <label for="peerSelect">Peer: </label><select id="peerSelect"></select>
+<body class="body">
+  <h1 class="title">Select a name to call</h1>
+
+  <video class="friendCamera" id="myCamera" playsinline autoplay muted></video>
+  
+  <div class="list">
+    <p class="list--title">Available for call</p>
+    <ul id="peerSelect"></ul>
+    <div class="chat">
+      <div class="messages">
+      </div>
+      
+      <div class="sending">
+        <input class="sending--input" type="input">
+        <button class="sending--submit">&#10003;</button>
+      </div>
+    </div>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.7.2/simplepeer.min.js" integrity="sha512-RZlErEuUwWv3EhGNhvni9vinu0QPwNU0OyWAlhTeezEToTZu/C+/Mn7ItRFmpcf8MTK0J2kRalSfzrpQqF7wJQ==" crossorigin="anonymous"></script>
@@ -22,11 +206,17 @@
 
     const $myCamera = document.getElementById('myCamera');
     const $peerSelect = document.getElementById('peerSelect');
+    const $chatButton = document.querySelector('.sending--submit');
+    const $chatInput = document.querySelector('.sending--input');
+    const $chatMessages = document.querySelector('.messages');
 
     let socket;
     let myStream;
     let peer;
-    let users = {}
+    let localClients;
+    let inCall = false;
+    let currentUser;
+    let messages = [];
 
     
     const servers = {
@@ -39,6 +229,10 @@
       if(!localStorage.getItem('nickname'))window.location.href="../index.html"
       initSocket();
       $peerSelect.addEventListener('input', callSelectedPeer);
+      $chatButton.addEventListener('click', addMessage);
+      $chatInput.addEventListener("keyup", (e)=>{e.keyCode === 13 ? addMessage() : ''});
+      $chatInput.disabled = true;
+      $chatButton.disabled = true;
       const constraints = { audio: true, video: { width: 1280, height: 720 } };
       myStream = await navigator.mediaDevices.getUserMedia(constraints);
       $myCamera.srcObject = myStream;
@@ -49,51 +243,95 @@
       socket = io.connect('/');
       socket.on('connect', () => {
         console.log(`this id: ${socket.id}`);
-        socket.emit('userName', {id: socket.id, username: localStorage.getItem('nickname')})
+        currentUser = {id: socket.id, username: localStorage.getItem('nickname')};
+        socket.emit('userName', currentUser)
       });
 
-      socket.on('userName', data => {
-        //users[data.id] = data.username;
-        //updatePeerList();
-      })
-
       socket.on('clients', updatePeerList);
+
+      socket.on('userRequest', (requestor) => {
+        socket.emit('userRequest', requestor.id, currentUser)
+      })
 
       socket.on('signal', async (myId, signal, peerId) => {
         peer.signal(signal);
       });
+    
+      socket.on('chatMessage', updateChat);
     };
 
+    const addMessage = () => {
+      if(inCall){
+        const messageObj = {from: currentUser, user: inCall, message: $chatInput.value};
+        socket.emit('chatMessage', messageObj)
+        $chatInput.value = '';
+        messages.push(messageObj);
+        updateChat(messageObj);
+      }
+    }
+
+    const updateChat = messageObj => {
+        const $message = document.createElement('p');
+        $message.classList.add('chat--item')
+        $message.textContent = messageObj.message
+        if(messageObj.from.id === currentUser.id)$message.classList.add('outgoing');
+        else if(messageObj.from.id === inCall.id)$message.classList.add('incoming');
+        $chatMessages.appendChild($message);
+    }
+
     const updatePeerList = (clients) => {
-      console.log(clients)
-      $peerSelect.innerHTML = '<option value="none">--- Select Peer To Call ---</option>';
+      localClients = clients;
+      $peerSelect.innerHTML = '';//'<li value="none">--- Select Peer To Call ---</li>';
       for (const clientId in clients) {
         const isMyOwnId = (clientId === socket.id);
         if (clients.hasOwnProperty(clientId) && !isMyOwnId) {
           const client = clients[clientId];
           const $option = document.createElement('option');
+          $option.classList.add('callOption');
           $option.value = clientId;
           $option.textContent = client.username;
+          if(inCall)if(inCall.id === client.id)$option.classList.add('currentCall');
+          $option.addEventListener('click', () => {callSelectedPeer(client)})
           $peerSelect.appendChild($option);
         }
       }
     };
 
-    const callSelectedPeer = async () => {
-      if ($peerSelect.value === 'none') {
-        // TODO: disconnect
+    const callSelectedPeer = async (client) => {
+      console.log(client);
+      if (client.id === 'none') {
         return;
       }
-      console.log('call selected peer', $peerSelect.value);
+      console.log('call selected peer', client.id);
 
-      callPeer($peerSelect.value);
+      document.querySelector('.title').textContent = `Currently calling with: ${client.username}`;
+      callPeer(client);
     };
 
-    const callPeer = async (peerId) => {
+    const callPeer = async (peerObj) => {
+
       peer = new SimplePeer({ initiator: true, stream: myStream });
+      console.log(peer);
       peer.on('signal', data => {
-        socket.emit('signal', peerId, data);
+        inCall = peerObj;
+        $chatInput.disabled = false;
+        $chatButton.disabled = false;
+        socket.emit('signal', peerObj.id, data);
+        updatePeerList(localClients);
       });
+
+      peer.on('close', () => {
+        inCall = false;
+        $chatMessages.innerHTML = '';
+        $chatInput.disabled = true;
+        $chatButton.disabled = true;
+        document.querySelector('.title').textContent = `Select a name to call`;
+      })
+
+      peer.on('error', error => {
+        console.log(`an error occured: ${error}`)
+      })
+
     };
 
     init();
