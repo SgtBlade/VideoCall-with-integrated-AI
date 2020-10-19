@@ -318,7 +318,7 @@
       
       try {
         const constraints = { audio: true, video: { width: 1280, height: 720 } };
-        myStream = await navigator.mediaDevices.getUserMedia({audio: false, video: {width: 640, height: 480}});
+        myStream = await navigator.mediaDevices.getUserMedia(constraints);
         $myCamera.srcObject = myStream;
         $myCamera.onloadedmetadata = () => $myCamera.play();
         if(!$myCamera.captureStream){
@@ -421,7 +421,6 @@
           $peerSelect.appendChild($option);
         }
       }
-      
     };
 
     const callSelectedPeer = async (client) => {
