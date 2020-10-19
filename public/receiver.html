@@ -290,6 +290,7 @@
 
     const initSocket = () => {
       socket = io.connect(`/`);
+      let audio = new Audio('sounds/wakeUp.mp3');
 
       socket.on(`connect`, () => {
         console.log(`this id: ${socket.id}`);
@@ -310,6 +311,11 @@
         document.querySelector('.title').textContent = `Currently calling with: ${callerData.username}`;
         $chatInput.disabled = false;
         $chatButton.disabled = false;
+      })
+
+      socket.on('wakeUp', () => {
+        console.log('wake up')
+        audio.play();
       })
 
       socket.on('signal', async (myId, signal, peerId) => {
