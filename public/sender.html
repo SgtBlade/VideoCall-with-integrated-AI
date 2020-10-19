@@ -486,7 +486,7 @@
             else string += ' and is falling asleep';
 
             if(results[0].label === "NA" || results[0].label === "Sleepy"){
-              if(warningCooldown === -2)warningCooldown = 15 //Omdat hij de eerste keer anders triggered
+              if(warningCooldown === -2)warningCooldown = 3 //Omdat hij de eerste keer anders triggered
               else if(warningCooldown < 0 && warningCooldown > -2){
                 socket.emit('wakeUp', inCall); 
                 warningCooldown = 30;
