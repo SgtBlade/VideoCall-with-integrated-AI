@@ -258,8 +258,8 @@
 <body class="body">
   <h1 class="title">Select a name to call</h1>
 
-  <video class="friendCamera" id="myCamera" playsinline autoplay muted></video>
-  
+  <video class="friendCamera" id="myCamera" playinline autoplay width="1280" height="720"></video>
+
   <div class="list">
     <p class="list--title">Available for call</p>
     <ul id="peerSelect"></ul>
@@ -275,6 +275,7 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/ml5@0.5.0/dist/ml5.min.js" type="text/javascript"></script>  
   <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.7.2/simplepeer.min.js" integrity="sha512-RZlErEuUwWv3EhGNhvni9vinu0QPwNU0OyWAlhTeezEToTZu/C+/Mn7ItRFmpcf8MTK0J2kRalSfzrpQqF7wJQ==" crossorigin="anonymous"></script>
   <script type="module">
 
@@ -284,6 +285,10 @@
     const $chatButton = document.querySelector('.sending--submit');
     const $chatInput = document.querySelector('.sending--input');
     const $chatMessages = document.querySelector('.messages');
+    const $title = document.querySelector('.title');
+    let warningCooldown = -2;
+    let featureExtractor, classifier;
+
 
     let socket;
     let myStream;
@@ -294,6 +299,8 @@
     let messages = [];
 
     
+
+
     const servers = {
       iceServers: [{
         urls: 'stun:stun.l.google.com:19302'
@@ -311,22 +318,31 @@
       
       try {
         const constraints = { audio: true, video: { width: 1280, height: 720 } };
-        myStream = await navigator.mediaDevices.getUserMedia(constraints);
+        myStream = await navigator.mediaDevices.getUserMedia({audio: false, video: {width: 640, height: 480}});
         $myCamera.srcObject = myStream;
         $myCamera.onloadedmetadata = () => $myCamera.play();
+        if(!$myCamera.captureStream){
+                  $myCamera.captureStream = () => stream;
+        }
       } catch {
         alert('Permission to the webcam is required for this application to work');
         window.location.href="../index.html"
       }
       
+      featureExtractor = await ml5.featureExtractor('MobileNet', { numLabels: 3}).ready;
+      classifier = featureExtractor.classification($myCamera);
+      await classifier.load('models/call/model.json');
+
+
     };
 
     const cancelCall= () => {
           if(peer !== null)peer.destroy(); 
           peer = null;
           $myCamera.srcObject = myStream;
-          document.querySelector('.title').textContent = `Select a name to call`;
+          $title.textContent = `Select a name to call`;
           inCall = false;
+          warningCooldown = -2;
           $chatMessages.innerHTML = '';
           $chatInput.disabled = true;
           $chatButton.disabled = true;
@@ -405,6 +421,7 @@
           $peerSelect.appendChild($option);
         }
       }
+      
     };
 
     const callSelectedPeer = async (client) => {
@@ -414,7 +431,7 @@
       if(inCall)cancelCall();
       console.log('call selected peer', client.id);
 
-      document.querySelector('.title').textContent = `Currently calling with: ${client.username}`;
+      $title.textContent = `Currently calling with: ${client.username}`;
       callPeer(client);
     };
 
@@ -423,7 +440,9 @@
       peer = new SimplePeer({ initiator: true, stream: myStream });
      
       peer.on('signal', data => {
+        const originalCall = inCall;
         inCall = peerObj;
+        if(!originalCall) loop();
         $chatInput.disabled = false;
         $chatButton.disabled = false;
         socket.emit('signal', peerObj.id, data);
@@ -453,6 +472,34 @@
       peer.on('stream', stream => {
         $myCamera.srcObject = stream;
       })
+    }
+
+    setInterval(() => {
+      if(warningCooldown > 0){warningCooldown--;console.log(`${warningCooldown} remaining untill next warning`);}
+    }, 1000);
+
+    const loop = async () => {
+            const results = await classifier.classify($myCamera);
+            let string = `Currently calling with: ${inCall.username}`;
+            if(results[0].label === "Normal") {string += ' and is paying attention'; if(warningCooldown === 0)warningCooldown = -1;}
+            else if(results[0].label === "NA")string += ' and is currently not present';
+            else string += ' and is falling asleep';
+
+            if(results[0].label === "NA" || results[0].label === "Sleepy"){
+              if(warningCooldown === -2)warningCooldown = 15 //Omdat hij de eerste keer anders triggered
+              else if(warningCooldown < 0 && warningCooldown > -2){
+                socket.emit('wakeUp', inCall); 
+                warningCooldown = 30;
+              }
+              
+            }
+
+            if(inCall){
+
+                $title.textContent = string;
+                loop();
+              
+            }
     }
 
     init();

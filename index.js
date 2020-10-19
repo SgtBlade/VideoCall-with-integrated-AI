@@ -47,8 +47,12 @@ io.on('connection', socket => {
     io.to(requestID).emit('userRequest', requestor)
   })
 
+  socket.on('wakeUp', (user) => {
+    io.to(user.id).emit('wakeUp', true)
+  })
+
   socket.on('signal', (peerId, signal) => {
-    console.log(`Received signal from ${socket.id} to ${peerId}`);
+    //console.log(`Received signal from ${socket.id} to ${peerId}`);
     io.to(peerId).emit('signal', peerId, signal, socket.id);
   });
 
